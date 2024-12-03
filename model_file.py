@@ -12,6 +12,19 @@ from langchain_core.prompts import (
 )
 from langchain_ollama import ChatOllama
 import os
+from dotenv import load_dotenv
+from utils import timer
+import logging
+
+
+
+load_dotenv()  
+
+
+logging.basicConfig(
+    level=logging.INFO,  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+    format="%(asctime)s - %(levelname)s - %(message)s",  # Customize log format
+)
 
 
 def extract_text_from_pdf(pdf_path: str) -> str:
@@ -19,7 +32,7 @@ def extract_text_from_pdf(pdf_path: str) -> str:
     reader = PdfReader(pdf_path)
     return "".join(page.extract_text() for page in reader.pages)
 
-
+@timer
 def load_text_from_file(file_path: str) -> Optional[str]:
     """Load text from either a PDF or text file."""
     if file_path.endswith(".pdf"):
@@ -30,17 +43,15 @@ def load_text_from_file(file_path: str) -> Optional[str]:
     print(f"Unsupported file type for {file_path}, skipping.")
     return None
 
-
+@timer
 def build_vector_store(
-    directory_path: str,
-    model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
-    chunk_size: int = 1024,
-    chunk_overlap: int = 0,
+    directory_path: str
 ) -> FAISS:
     """Build a FAISS vector store from documents in a directory."""
-    embeddings = HuggingFaceEmbeddings(model_name=model_name)
+    embeddings = HuggingFaceEmbeddings(model_name=os.environ.get("EMBEDDING_MODEL"))
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=chunk_size, chunk_overlap=chunk_overlap
+        chunk_size=int(os.environ.get("CHUNK_SIZE", 1024)),
+        chunk_overlap=int(os.environ.get("CHUNK_OVERLAP", 0))
     )
     documents = []
 
@@ -77,9 +88,9 @@ def construct_prompt(
     )
     return "".join(message.content for message in formatted_prompt)
 
-
+@timer
 def query_llm(
-    vector_store: FAISS, query: str, temperature: float = 0
+    vector_store: FAISS, query: str
 ) -> str:
     """Query the LLM based on the vector store and user query."""
     results = vector_store.similarity_search(query, k=5)
@@ -113,22 +124,19 @@ def query_llm(
     - Answer the query based on the document, referencing the page number(s), or identify the query as irrelevant if the document does not contain an answer.
     """
     final_prompt = construct_prompt(system_prompt, retrieved_docs, query)
-    llm = ChatOllama(model=os.environ['LLM_MODEL'], temperature=temperature)
+    llm = ChatOllama(model=os.environ['LLM_MODEL'], temperature=os.environ['TEMPERATURE'])
     return llm.invoke(final_prompt)
 
 
-def run_llm():
+def run_llm(user_query):
     """Main function to execute the workflow."""
-    print("Starting vector store creation...")
+    logging.info("Starting vector store creation...")
     vector_store = build_vector_store("./Document/test")
-    print("Vector store creation complete.")
-    
-    user_query = "How to download and install MFP agent...?"
-    print("Querying the LLM...")
+    logging.info("Vector store creation complete.")
+    logging.info("Querying the LLM...")
     response = query_llm(vector_store, user_query)
-    print("LLM Response:")
-    print(response)
-
+    logging.info("LLM Response retrieved.")
+    return response
 
 if __name__ == "__main__":
-    run_llm()
+    print(run_llm("what is synnapx go..?"))

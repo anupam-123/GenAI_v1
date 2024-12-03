@@ -3,14 +3,7 @@ from fastapi import Body, FastAPI, File, Form, Query, Path, UploadFile
 from pydantic import BaseModel
 # from model_file import Main
 
-
-
-
 app = FastAPI()
-
-
-
-
 
 @app.post("/items/{prompt}")
 async def read_items(result: Annotated[str | None, Query(max_length=5)] = None):
@@ -34,7 +27,6 @@ async def create_file(
     fileb: Annotated[UploadFile, File()],
     token: Annotated[str, Form()],
 ):
-    
     return {
         "file_size": len(file),
         "token": token,
