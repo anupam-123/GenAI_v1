@@ -13,19 +13,12 @@ from langchain_core.prompts import (
 from langchain_ollama import ChatOllama
 import os
 from dotenv import load_dotenv
-from utils import timer
-import logging
+from utils import timer, setup_logging
 
 
 
 load_dotenv()  
-
-
-logging.basicConfig(
-    level=logging.INFO,  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-    format="%(asctime)s - %(levelname)s - %(message)s",  # Customize log format
-)
-
+logging = setup_logging()
 
 def extract_text_from_pdf(pdf_path: str) -> str:
     """Extract text from a PDF file using pypdf."""
@@ -71,7 +64,6 @@ def build_vector_store(
 def construct_prompt(
     system_prompt: str, retrieved_docs: str, user_query: str
 ) -> str:
-    """Construct a prompt for the LLM based on the system prompt, retrieved docs, and query."""
     system_message = SystemMessagePromptTemplate.from_template(system_prompt)
     human_message = HumanMessagePromptTemplate.from_template(
         """
@@ -124,19 +116,25 @@ def query_llm(
     - Answer the query based on the document, referencing the page number(s), or identify the query as irrelevant if the document does not contain an answer.
     """
     final_prompt = construct_prompt(system_prompt, retrieved_docs, query)
-    llm = ChatOllama(model=os.environ['LLM_MODEL'], temperature=os.environ['TEMPERATURE'])
+    try:
+        llm = ChatOllama(model=os.environ['LLM_MODEL'], temperature=os.environ['TEMPERATURE'])
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
     return llm.invoke(final_prompt)
 
 
 def run_llm(user_query):
     """Main function to execute the workflow."""
     logging.info("Starting vector store creation...")
-    vector_store = build_vector_store("./Document/test")
+    vector_store = build_vector_store("./uploads/")
     logging.info("Vector store creation complete.")
     logging.info("Querying the LLM...")
-    response = query_llm(vector_store, user_query)
+    try:
+        response = query_llm(vector_store, user_query)
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
     logging.info("LLM Response retrieved.")
     return response
 
-if __name__ == "__main__":
-    print(run_llm("what is synnapx go..?"))
+# if __name__ == "__main__":
+#     print(run_llm("what is synnapx go..?"))
