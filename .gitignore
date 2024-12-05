@@ -141,3 +141,7 @@ cython_debug/
 Document
 
 uploads
+
+vector_store.pkl
+
+file_hash.txt

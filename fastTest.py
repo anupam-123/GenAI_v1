@@ -1,45 +1,46 @@
 from typing import Annotated
-from fastapi import Body, FastAPI, File, Form, Query, Path, UploadFile
-from pydantic import BaseModel
+from fastapi import Body, FastAPI, File, Form, UploadFile
 from utils import setup_logging
 import shutil
 from model_file import run_llm  
+from fastapi.middleware.cors import CORSMiddleware
+
 
 
 logging = setup_logging()
 app = FastAPI()
 
-# @app.post("/items/{prompt}")
-# async def read_items(result: Annotated[str | None, Query(max_length=5)] = None):
-#     results = {"items": [{"item_id": "Foo"}, {"item_id": "Bar"}]}
-#     if result:
-#         results.update({"q": result})
-#     return results
+origins = [
+    "http://localhost:4200",
+]
 
-# @app.post('/items/{prompt_v2}')
-# async def read_items(item_id:Annotated[int, Path(title="The ID of the item to get")],
-#                      q: Annotated[str | None, Query(alias='item-query')] = None):
-#     results = {"item_id": item_id}
-#     if q:
-#         results.update({"q": q})
-#     return results
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.post("/files/")
 async def create_file(
     fileb: Annotated[UploadFile, File()],
     prompt: Annotated[str, Form()],
 ):
-    logging.info("File name: %s",prompt)
-    logging.info("%s file loaded successfully...!",fileb.filename)
-    with open(f"uploads/{fileb.filename}", "wb") as buffer:
-        shutil.copyfileobj(fileb.file, buffer)
-    print(prompt)
+    logging.info("Received prompt: %s", prompt)
+    logging.info("Received file: %s", fileb.filename)
+    try:
+        with open(f"uploads/{fileb.filename}", "wb") as buffer:
+            shutil.copyfileobj(fileb.file, buffer)
+        logging.info("File saved successfully: %s", fileb.filename)
+    except Exception as e:
+        logging.error(f"Failed to save file {fileb.filename}: {e}")
+        return {"error": "Failed to save the uploaded file."}
+
     try:
         response = run_llm(prompt)
+        logging.info("LLM response: %s", response)
+        return {"response": response}
     except Exception as e:
-        logging.error(f"An error occurred: {e}")
-    logging.info(response)
-    return {
-        response
-    }
+        logging.error(f"An error occurred while processing the request: {e}")
+        return {"error": "An error occurred while processing your request."}
