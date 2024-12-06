@@ -121,7 +121,7 @@ def build_vector_store(directory_path: str) -> FAISS:
                     logging.warning(f"No text extracted from {file_path}, skipping.")
             else:
                 logging.warning(f"{file_path} is not a file, skipping.")
-
+        
         return FAISS.from_documents(documents, embeddings)
     except Exception as e:
         logging.error(f"An error occurred while building the vector store: {e}")
@@ -193,7 +193,6 @@ def run_llm(user_query):
     vector_store_file_path = 'vector_store.pkl'
 
     try:
-        # Check if the file has changed
         file_changed = any(is_file_changed(os.path.join(document_directory, filename), hash_file_path)
                            for filename in os.listdir(document_directory) if os.path.isfile(os.path.join(document_directory, filename)))
 
