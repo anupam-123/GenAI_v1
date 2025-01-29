@@ -178,9 +178,8 @@ def query_llm(vector_store: FAISS, query: str) -> str:
         - Analyze the retrieved document context and its page numbers.
         - Answer the query based on the document, referencing the page number(s), or identify the query as irrelevant if the document does not contain an answer.
         """
-        final_prompt = construct_prompt(system_prompt, retrieved_docs, query)
         llm = ChatOllama(model=os.environ['LLM_MODEL'], temperature=os.environ['TEMPERATURE'])
-        return llm.invoke(final_prompt)
+        return llm.invoke(construct_prompt(system_prompt, retrieved_docs, query))
     except Exception as e:
         logging.error(f"An error occurred while querying the LLM: {e}")
         return "An error occurred while processing your request."
@@ -198,17 +197,15 @@ def run_llm(user_query):
 
         if file_changed:
             logging.info("File has changed. Regenerating vector store...")
-            vector_store = build_vector_store(document_directory)
-            save_vector_store(vector_store, vector_store_file_path)
+            save_vector_store(build_vector_store(document_directory), vector_store_file_path)
             for filename in os.listdir(document_directory):
                 if os.path.isfile(os.path.join(document_directory, filename)):
                     save_file_hash(os.path.join(document_directory, filename), hash_file_path)
         else:
             logging.info("File has not changed. Loading existing vector store...")
-            vector_store = load_vector_store(vector_store_file_path)
 
         logging.info("Querying the LLM...")
-        response = query_llm(vector_store, user_query)
+        response = query_llm(load_vector_store(vector_store_file_path), user_query)
         logging.info("LLM Response retrieved.")
         return response
     except Exception as e:
